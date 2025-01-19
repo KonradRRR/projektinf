@@ -10,8 +10,8 @@ const int MAP_WIDTH = 21;
 const int MAP_HEIGHT = 15;
 const int WINDOW_WIDTH = MAP_WIDTH * TILE_SIZE;
 const int WINDOW_HEIGHT = MAP_HEIGHT * TILE_SIZE;
-const float CHASE_DURATION = 5.0f;  // Czas trwania trybu poœcigu w sekundach
-const float CHASE_INTERVAL = 15.0f;  // Odstêp miêdzy trybami poœcigu
+const float CHASE_DURATION = 5.0f;  // Czas trwania trybu po¿igu w sekundach
+const float CHASE_INTERVAL = 15.0f;  // Odstêp miêdzy trybami po¿igu
 
 int map[MAP_HEIGHT][MAP_WIDTH] = {
     // ... [poprzednia mapa pozostaje bez zmian]
@@ -36,12 +36,12 @@ struct Point {
     sf::Vector2i position;
     sf::CircleShape shape;
     bool active;
-    
+
     Point(sf::Vector2i pos) : position(pos), active(true) {
         shape = sf::CircleShape(5);
         shape.setFillColor(sf::Color::White);
-        shape.setPosition(pos.x * TILE_SIZE + TILE_SIZE/2 - 5, 
-                         pos.y * TILE_SIZE + TILE_SIZE/2 - 5);
+        shape.setPosition(pos.x * TILE_SIZE + TILE_SIZE / 2 - 5,
+            pos.y * TILE_SIZE + TILE_SIZE / 2 - 5);
     }
 };
 
@@ -63,14 +63,14 @@ sf::Vector2i getDirectionToTarget(sf::Vector2i current, sf::Vector2i target) {
     std::vector<sf::Vector2i> possibleDirections = {
         {0, -1}, {0, 1}, {-1, 0}, {1, 0}
     };
-    
+
     float minDist = 999999.0f;
     sf::Vector2i bestDir = randomDirection();
-    
+
     for (const auto& dir : possibleDirections) {
         sf::Vector2i newPos = current + dir;
-        if (newPos.x >= 0 && newPos.x < MAP_WIDTH && 
-            newPos.y >= 0 && newPos.y < MAP_HEIGHT && 
+        if (newPos.x >= 0 && newPos.x < MAP_WIDTH &&
+            newPos.y >= 0 && newPos.y < MAP_HEIGHT &&
             map[newPos.y][newPos.x] != 1) {
             float dist = distance(newPos, target);
             if (dist < minDist) {
@@ -79,7 +79,7 @@ sf::Vector2i getDirectionToTarget(sf::Vector2i current, sf::Vector2i target) {
             }
         }
     }
-    
+
     return bestDir;
 }
 
@@ -90,7 +90,7 @@ struct Ghost {
     bool isChasing;
     sf::Color normalColor;
 
-    Ghost(sf::Color color, sf::Vector2i startPos, sf::Vector2i startDir) 
+    Ghost(sf::Color color, sf::Vector2i startPos, sf::Vector2i startDir)
         : normalColor(color), isChasing(false) {
         shape = sf::CircleShape(TILE_SIZE / 2 - 2);
         shape.setFillColor(color);
@@ -102,7 +102,8 @@ struct Ghost {
         if (chaseMode) {
             direction = getDirectionToTarget(position, pacmanPos);
             shape.setFillColor(sf::Color::Red);  // Kolor podczas poœcigu
-        } else {
+        }
+        else {
             if (map[position.y + direction.y][position.x + direction.x] == 1) {
                 direction = randomDirection();
             }
@@ -161,7 +162,7 @@ int main() {
     scoreText.setFont(font);
     scoreText.setCharacterSize(24);
     scoreText.setFillColor(sf::Color::White);
-    scoreText.setPosition(10, 10);
+    scoreText.setPosition(0, 0);
 
     sf::Text modeText;
     modeText.setFont(font);
@@ -183,12 +184,13 @@ int main() {
 
         // Aktualizacja trybu poœcigu
         float currentTime = gameClock.getElapsedTime().asSeconds();
-        
+
         if (!chaseMode && currentTime - lastChaseTime >= CHASE_INTERVAL) {
             chaseMode = true;
             chaseStartTime = currentTime;
             lastChaseTime = currentTime;
-        } else if (chaseMode && currentTime - chaseStartTime >= CHASE_DURATION) {
+        }
+        else if (chaseMode && currentTime - chaseStartTime >= CHASE_DURATION) {
             chaseMode = false;
         }
 
@@ -202,7 +204,7 @@ int main() {
                         point.active = false;
                         score += 10;
                         collectedPoints++;
-                        
+
                         if (collectedPoints >= totalPoints) {
                             window.close();
                             std::cout << "You win! Score: " << score << std::endl;
@@ -227,7 +229,7 @@ int main() {
         }
 
         window.clear();
-        
+
         // Rysowanie œcian
         for (int y = 0; y < MAP_HEIGHT; ++y) {
             for (int x = 0; x < MAP_WIDTH; ++x) {
