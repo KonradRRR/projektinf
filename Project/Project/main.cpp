@@ -6,15 +6,17 @@
 #include <ctime>
 #include <cmath>
 
-const int TILE_SIZE = 32;
-const int MAP_WIDTH = 21;
-const int MAP_HEIGHT = 15;
-const int WINDOW_WIDTH = MAP_WIDTH * TILE_SIZE;
-const int WINDOW_HEIGHT = MAP_HEIGHT * TILE_SIZE;
-const float CHASE_DURATION = 5.0f;  // Czas trwania trybu po¿igu w sekundach
-const float CHASE_INTERVAL = 15.0f;  // Odstêp miêdzy trybami po¿igu
+// Sta³e do ustawienia wielkoœci okna i mapy
+const int ROZMIAR_KAFELKA = 50;  // wielkoœæ jednego kafelka w pikselach
+const int SZEROKOSC_MAPY = 21;   // ile kafelków w poziomie
+const int WYSOKOSC_MAPY = 15;    // ile kafelków w pionie
+const int SZEROKOSC_OKNA = SZEROKOSC_MAPY * ROZMIAR_KAFELKA;
+const int WYSOKOSC_OKNA = WYSOKOSC_MAPY * ROZMIAR_KAFELKA;
+const float CZAS_GONIENIA = 5.0f;     // jak d³ugo duszki goni¹ gracza
+const float PRZERWA_GONIENIA = 15.0f; // co ile czasu duszki zaczynaj¹ goniæ
 
-int map[MAP_HEIGHT][MAP_WIDTH] = {
+// Mapa gry: 1 = œciana, 0 = punkt, 2 = powerup (nieu¿ywany)
+int mapa[WYSOKOSC_MAPY][SZEROKOSC_MAPY] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,2,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,2,0,1},
     {1,0,1,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1},
@@ -32,290 +34,368 @@ int map[MAP_HEIGHT][MAP_WIDTH] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
-struct Point {
-    sf::Vector2i position;
-    sf::CircleShape shape;
-    bool active;
+// Struktura reprezentuj¹ca punkt do zebrania
+// Ka¿dy punkt ma swoj¹ pozycjê i mo¿e byæ aktywny lub nie
+struct Punkt {
+    sf::Vector2i pozycja;  // pozycja na mapie
+    sf::CircleShape ksztalt;  // wygl¹d punktu
+    bool aktywny;  // czy punkt zosta³ ju¿ zebrany
 
-    Point(sf::Vector2i pos) : position(pos), active(true) {
-        shape = sf::CircleShape(5);
-        shape.setFillColor(sf::Color::White);
-        shape.setPosition(pos.x * TILE_SIZE + TILE_SIZE / 2 - 5,
-            pos.y * TILE_SIZE + TILE_SIZE / 2 - 5);
+    // Konstruktor - tworzy nowy punkt w podanej pozycji
+    Punkt(sf::Vector2i poz) : pozycja(poz), aktywny(true) {
+        ksztalt = sf::CircleShape(5);  // kó³ko o promieniu 5 pikseli
+        ksztalt.setFillColor(sf::Color::White);
+        // ustawiam pozycjê punktu na œrodku kafelka
+        ksztalt.setPosition(
+            poz.x * ROZMIAR_KAFELKA + ROZMIAR_KAFELKA / 2 - 5,
+            poz.y * ROZMIAR_KAFELKA + ROZMIAR_KAFELKA / 2 - 5
+        );
     }
 };
 
-sf::Vector2i randomDirection() {
-    int dir = rand() % 4;
-    if (dir == 0) return { 0, -1 };
-    if (dir == 1) return { 0, 1 };
-    if (dir == 2) return { -1, 0 };
-    return { 1, 0 };
+// Funkcja zwraca losowy kierunek ruchu (góra, dó³, lewo, prawo)
+sf::Vector2i losowy_kierunek() {
+    int kier = rand() % 4;  // losujê liczbê od 0 do 3
+    if (kier == 0) return { 0, -1 };  // góra
+    if (kier == 1) return { 0, 1 };   // dó³
+    if (kier == 2) return { -1, 0 };  // lewo
+    return { 1, 0 };  // prawo
 }
 
-float distance(sf::Vector2i a, sf::Vector2i b) {
-    return std::sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+// Funkcja liczy odleg³oœæ miêdzy dwoma punktami
+// U¿ywam wzoru na odleg³oœæ euklidesow¹
+float odleglosc(sf::Vector2i a, sf::Vector2i b) {
+    return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
 }
 
-sf::Vector2i getDirectionToTarget(sf::Vector2i current, sf::Vector2i target) {
-    std::vector<sf::Vector2i> possibleDirections = {
+// Funkcja znajduje najlepszy kierunek do celu
+// Sprawdza wszystkie mo¿liwe ruchy i wybiera ten, który najbardziej zbli¿a do celu
+sf::Vector2i znajdz_kierunek_do_celu(sf::Vector2i obecna, sf::Vector2i cel) {
+    // Mo¿liwe kierunki ruchu
+    std::vector<sf::Vector2i> mozliwe_kierunki = {
         {0, -1}, {0, 1}, {-1, 0}, {1, 0}
     };
 
-    float minDist = 999999.0f;
-    sf::Vector2i bestDir = randomDirection();
+    float min_odl = 99999.0f;  // du¿a liczba na pocz¹tek
+    sf::Vector2i najlepszy_kier = losowy_kierunek();  // jakby nic nie znalaz³
 
-    for (const auto& dir : possibleDirections) {
-        sf::Vector2i newPos = current + dir;
-        if (newPos.x >= 0 && newPos.x < MAP_WIDTH &&
-            newPos.y >= 0 && newPos.y < MAP_HEIGHT &&
-            map[newPos.y][newPos.x] != 1) {
-            float dist = distance(newPos, target);
-            if (dist < minDist) {
-                minDist = dist;
-                bestDir = dir;
+    // Sprawdzam ka¿dy mo¿liwy kierunek
+    for (const auto& kier : mozliwe_kierunki) {
+        sf::Vector2i nowa_poz = obecna + kier;
+        // Sprawdzam czy nowa pozycja jest ok (nie wychodzi poza mapê i nie jest œcian¹)
+        if (nowa_poz.x >= 0 && nowa_poz.x < SZEROKOSC_MAPY &&
+            nowa_poz.y >= 0 && nowa_poz.y < WYSOKOSC_MAPY &&
+            mapa[nowa_poz.y][nowa_poz.x] != 1) {
+            float odl = odleglosc(nowa_poz, cel);
+            if (odl < min_odl) {
+                min_odl = odl;
+                najlepszy_kier = kier;
             }
         }
     }
 
-    return bestDir;
+    return najlepszy_kier;
 }
 
-struct Ghost {
-    sf::CircleShape shape;
-    sf::Vector2i position;
-    sf::Vector2i direction;
-    bool isChasing;
-    sf::Color normalColor;
+// Struktura reprezentuj¹ca ducha
+struct Duch {
+    sf::CircleShape ksztalt;      // jak duch wygl¹da
+    sf::Vector2i pozycja;         // gdzie jest
+    sf::Vector2i kierunek;        // dok¹d idzie
+    bool goni;                    // czy goni gracza
+    sf::Color normalny_kolor;     // kolor ducha jak nie goni
 
-    Ghost(sf::Color color, sf::Vector2i startPos, sf::Vector2i startDir)
-        : normalColor(color), isChasing(false) {
-        shape = sf::CircleShape(TILE_SIZE / 2 - 2);
-        shape.setFillColor(color);
-        position = startPos;
-        direction = startDir;
+    // Konstruktor - ustawia pocz¹tkowe wartoœci ducha
+    Duch(sf::Color kolor, sf::Vector2i start_poz, sf::Vector2i start_kier)
+        : normalny_kolor(kolor), goni(false) {
+        ksztalt = sf::CircleShape(ROZMIAR_KAFELKA / 2 - 2);
+        ksztalt.setFillColor(kolor);
+        pozycja = start_poz;
+        kierunek = start_kier;
     }
 
-    void updateDirection(const sf::Vector2i& pacmanPos, bool chaseMode) {
-        if (chaseMode) {
-            direction = getDirectionToTarget(position, pacmanPos);
-            shape.setFillColor(sf::Color::Red);
+    // Funkcja aktualizuje kierunek ruchu ducha
+    void zmien_kierunek(const sf::Vector2i& pozycja_gracza, bool tryb_gonienia) {
+        if (tryb_gonienia) {
+            // W trybie gonienia duch próbuje z³apaæ gracza
+            kierunek = znajdz_kierunek_do_celu(pozycja, pozycja_gracza);
+            ksztalt.setFillColor(sf::Color::Red);  // duch robi siê czerwony
         }
         else {
-            if (map[position.y + direction.y][position.x + direction.x] == 1) {
-                direction = randomDirection();
+            // Normalny ruch - losowy gdy napotka œcianê
+            if (mapa[pozycja.y + kierunek.y][pozycja.x + kierunek.x] == 1) {
+                kierunek = losowy_kierunek();
             }
-            shape.setFillColor(normalColor);
+            ksztalt.setFillColor(normalny_kolor);
         }
     }
 };
 
-class Player {
+// Klasa reprezentuj¹ca gracza
+class Gracz {
 public:
-    sf::CircleShape shape;
-    sf::Vector2i position;
-    sf::Vector2i direction;
-    int score;
-    std::string profileName;
+    sf::CircleShape ksztalt;   // jak gracz wygl¹da
+    sf::Vector2i pozycja;      // gdzie jest
+    sf::Vector2i kierunek;     // dok¹d idzie
+    int punkty;                // ile punktów zdoby³
+    std::string nazwa_profilu; // nazwa gracza
 
-    Player(const std::string& name) : position(1, 1), direction(0, 0), score(0), profileName(name) {
-        shape = sf::CircleShape(TILE_SIZE / 2 - 2);
-        shape.setFillColor(sf::Color::Yellow);
+    // Konstruktor - ustawia pocz¹tkowe wartoœci gracza
+    Gracz(const std::string& nazwa) : pozycja(1, 1), kierunek(0, 0), punkty(0), nazwa_profilu(nazwa) {
+        ksztalt = sf::CircleShape(ROZMIAR_KAFELKA / 2 - 2);
+        ksztalt.setFillColor(sf::Color::Yellow);
     }
 
-    void move() {
-        sf::Vector2i newPos = position + direction;
-        if (map[newPos.y][newPos.x] != 1) {
-            position = newPos;
+    // Funkcja porusza graczem w aktualnym kierunku
+    void ruch() {
+        sf::Vector2i nowa_poz = pozycja + kierunek;
+        // Sprawdzam czy mo¿na siê ruszyæ (nie ma œciany)
+        if (mapa[nowa_poz.y][nowa_poz.x] != 1) {
+            pozycja = nowa_poz;
         }
     }
 
-    void updateScore(Point& point) {
-        if (point.active && point.position == position) {
-            point.active = false;
-            score += 10;
+    // Funkcja sprawdza czy gracz zebra³ punkt
+    void aktualizuj_punkty(Punkt& punkt) {
+        if (punkt.aktywny && punkt.pozycja == pozycja) {
+            punkt.aktywny = false;  // punkt zebrany
+            punkty += 10;           // dodajê 10 punktów
         }
     }
 
-    void saveScore() {
-        std::ofstream file(profileName + ".txt", std::ios::app);
-        if (file.is_open()) {
-            file << "Score: " << score << std::endl;
-            file.close();
+    // Funkcja zapisuje wynik do pliku
+    void zapisz_wynik() {
+        std::ofstream plik(nazwa_profilu + ".txt", std::ios::app);
+        if (plik.is_open()) {
+            plik << "Wynik: " << punkty << std::endl;
+            plik.close();
         }
     }
 };
 
+// G³ówna funkcja programu
 int main() {
+    // Inicjalizacja generatora liczb losowych
     srand(static_cast<unsigned>(time(nullptr)));
 
-    std::string profileName;
-    std::cout << "Enter your profile name: ";
-    std::getline(std::cin, profileName);
+    // Pobieranie nazwy gracza
+    std::string nazwa_gracza;
+    std::cout << "Podaj swoje imie: ";
+    std::getline(std::cin, nazwa_gracza);
 
-    Player player(profileName);
+    // Tworzenie gracza
+    Gracz gracz(nazwa_gracza);
 
-    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Pac-Man SFML");
-    window.setFramerateLimit(60);
+    // Tworzenie okna gry
+    sf::RenderWindow okno(sf::VideoMode(SZEROKOSC_OKNA, WYSOKOSC_OKNA), "Pac-Man");
+    okno.setFramerateLimit(60);  // limit 60 klatek na sekundê
 
-    sf::Clock gameClock;
-    float lastChaseTime = 0.0f;
-    bool chaseMode = false;
-    float chaseStartTime = 0.0f;
-    bool isPaused = false;
+    // Zmienne do kontroli czasu i trybu gry
+    sf::Clock zegar_gry;
+    float czas_ostatniego_gonienia = 0.0f;
+    bool tryb_gonienia = false;
+    float czas_start_gonienia = 0.0f;
+    bool pauza = false;
 
-    sf::RectangleShape wall(sf::Vector2f(TILE_SIZE, TILE_SIZE));
-    wall.setFillColor(sf::Color::Blue);
+    // Tworzenie kszta³tu œciany
+    sf::RectangleShape sciana(sf::Vector2f(ROZMIAR_KAFELKA, ROZMIAR_KAFELKA));
+    sciana.setFillColor(sf::Color::Blue);
 
-    std::vector<Point> points;
-    int totalPoints = 0;
-    for (int y = 0; y < MAP_HEIGHT; ++y) {
-        for (int x = 0; x < MAP_WIDTH; ++x) {
-            if (map[y][x] == 0) {
-                points.push_back(Point(sf::Vector2i(x, y)));
-                totalPoints++;
+    // Tworzenie punktów do zebrania
+    std::vector<Punkt> punkty;
+    int liczba_punktow = 0;
+    // Przeszukujê mapê i dodajê punkty tam gdzie s¹ zera
+    for (int y = 0; y < WYSOKOSC_MAPY; ++y) {
+        for (int x = 0; x < SZEROKOSC_MAPY; ++x) {
+            if (mapa[y][x] == 0) {
+                punkty.push_back(Punkt(sf::Vector2i(x, y)));
+                liczba_punktow++;
             }
         }
     }
 
-    int frameCounter = 0, moveDelay = 15;
+    // Zmienna do kontroli prêdkoœci gry
+    int licznik_klatek = 0;
+    int opoznienie_ruchu = 15;  // co tyle klatek nastêpuje ruch
 
-    std::vector<Ghost> ghosts = {
-        Ghost(sf::Color::Magenta, {10, 7}, {0, -1}),
-        Ghost(sf::Color::Cyan, {10, 8}, {0, 1}),
-        Ghost(sf::Color::Green, {1, 13}, {1, 0}),
-        Ghost(sf::Color(255, 165, 0), {19, 1}, {-1, 0})
+    // Tworzenie duchów
+    std::vector<Duch> duchy = {
+        Duch(sf::Color::Magenta, {10, 7}, {0, -1}),   // Ró¿owy duch
+        Duch(sf::Color::Cyan, {10, 8}, {0, 1}),       // Niebieski duch
+        Duch(sf::Color::Green, {1, 13}, {1, 0}),      // Zielony duch
+        Duch(sf::Color(255, 165, 0), {19, 1}, {-1, 0})// Pomarañczowy duch
     };
 
-    sf::Font font;
-    if (!font.loadFromFile("arial.ttf")) {
-        std::cerr << "Font loading error!" << std::endl;
+    // Wczytywanie czcionki
+    sf::Font czcionka;
+    if (!czcionka.loadFromFile("arial.ttf")) {
+        std::cout << "Blad" << std::endl;
         return -1;
     }
 
-    sf::Text scoreText;
-    scoreText.setFont(font);
-    scoreText.setCharacterSize(24);
-    scoreText.setFillColor(sf::Color::White);
-    scoreText.setPosition(0, 0);
+    // Tekst wyœwietlaj¹cy punkty
+    sf::Text tekst_punktow;
+    tekst_punktow.setFont(czcionka);
+    tekst_punktow.setCharacterSize(30);
+    tekst_punktow.setFillColor(sf::Color::White);
+    tekst_punktow.setPosition(50, 0);
 
-    sf::Text modeText;
-    modeText.setFont(font);
-    modeText.setCharacterSize(24);
-    modeText.setFillColor(sf::Color::White);
-    modeText.setPosition(WINDOW_WIDTH - 200, 10);
+    // Tekst wyœwietlaj¹cy tryb gry
+    sf::Text tekst_trybu;
+    tekst_trybu.setFont(czcionka);
+    tekst_trybu.setCharacterSize(30);
+    tekst_trybu.setFillColor(sf::Color::White);
+    tekst_trybu.setPosition(SZEROKOSC_OKNA - 250, 10);
 
-    sf::Text pauseText;
-    pauseText.setFont(font);
-    pauseText.setCharacterSize(32);
-    pauseText.setFillColor(sf::Color::Yellow);
-    pauseText.setString("Game Paused\nPress R to Resume\nPress Q to Quit");
-    pauseText.setPosition(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT / 2 - 50);
+    // Tekst wyœwietlany podczas pauzy
+    sf::Text tekst_pauzy;
+    tekst_pauzy.setFont(czcionka);
+    tekst_pauzy.setCharacterSize(32);
+    tekst_pauzy.setFillColor(sf::Color::Yellow);
+    tekst_pauzy.setString("PAUZA\nR - Wznow\nQ - Wyjdz");
+    tekst_pauzy.setPosition(SZEROKOSC_OKNA / 2 - 100, WYSOKOSC_OKNA / 2 - 50);
 
-    while (window.isOpen()) {
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) window.close();
-            if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Escape) {
-                    isPaused = !isPaused;
+    // G³ówna pêtla gry
+    while (okno.isOpen()) {
+        // Obs³uga zdarzeñ (klawisze, zamkniêcie okna)
+        sf::Event zdarzenie;
+        while (okno.pollEvent(zdarzenie)) {
+            if (zdarzenie.type == sf::Event::Closed)
+                okno.close();
+
+            if (zdarzenie.type == sf::Event::KeyPressed) {
+                // Obs³uga pauzy
+                if (zdarzenie.key.code == sf::Keyboard::Escape) {
+                    pauza = !pauza;
                 }
-                if (isPaused) {
-                    if (event.key.code == sf::Keyboard::R) {
-                        isPaused = false;
+                if (pauza) {
+                    if (zdarzenie.key.code == sf::Keyboard::R) {
+                        pauza = false;
                     }
-                    if (event.key.code == sf::Keyboard::Q) {
-                        player.saveScore();
-                        window.close();
+                    if (zdarzenie.key.code == sf::Keyboard::Q) {
+                        gracz.zapisz_wynik();
+                        okno.close();
                     }
                 }
                 else {
-                    if (event.key.code == sf::Keyboard::W) player.direction = { 0, -1 };
-                    if (event.key.code == sf::Keyboard::S) player.direction = { 0, 1 };
-                    if (event.key.code == sf::Keyboard::A) player.direction = { -1, 0 };
-                    if (event.key.code == sf::Keyboard::D) player.direction = { 1, 0 };
+                    // Obs³uga ruchu gracza
+                    if (zdarzenie.key.code == sf::Keyboard::W) gracz.kierunek = { 0, -1 };
+                    if (zdarzenie.key.code == sf::Keyboard::S) gracz.kierunek = { 0, 1 };
+                    if (zdarzenie.key.code == sf::Keyboard::A) gracz.kierunek = { -1, 0 };
+                    if (zdarzenie.key.code == sf::Keyboard::D) gracz.kierunek = { 1, 0 };
                 }
             }
         }
 
-        if (isPaused) {
-            window.clear();
-            window.draw(pauseText);
-            window.display();
+        // Jeœli pauza, wyœwietl tylko tekst pauzy
+        if (pauza) {
+            okno.clear();
+            okno.draw(tekst_pauzy);
+            okno.display();
             continue;
         }
 
-        float currentTime = gameClock.getElapsedTime().asSeconds();
+        // Sprawdzanie czasu do zmiany trybu gry
+        float aktualny_czas = zegar_gry.getElapsedTime().asSeconds();
 
-        if (!chaseMode && currentTime - lastChaseTime >= CHASE_INTERVAL) {
-            chaseMode = true;
-            chaseStartTime = currentTime;
-            lastChaseTime = currentTime;
+        // Zmiana trybu gry
+        if (!tryb_gonienia && aktualny_czas - czas_ostatniego_gonienia >= PRZERWA_GONIENIA) {
+            tryb_gonienia = true;
+            czas_start_gonienia = aktualny_czas;
+            czas_ostatniego_gonienia = aktualny_czas;
         }
-        else if (chaseMode && currentTime - chaseStartTime >= CHASE_DURATION) {
-            chaseMode = false;
+        else if (tryb_gonienia && aktualny_czas - czas_start_gonienia >= CZAS_GONIENIA) {
+            tryb_gonienia = false;
         }
 
-        if (++frameCounter >= moveDelay) {
-            frameCounter = 0;
-            player.move();
-            for (auto& point : points) {
-                player.updateScore(point);
+        // Aktualizacja stanu gry co kilka klatek
+        if (++licznik_klatek >= opoznienie_ruchu) {
+            licznik_klatek = 0;
+
+            // Ruch gracza
+            gracz.ruch();
+
+            // Sprawdzanie zebranych punktów
+            for (auto& punkt : punkty) {
+                gracz.aktualizuj_punkty(punkt);
             }
 
-            if (std::all_of(points.begin(), points.end(), [](const Point& p) { return !p.active; })) {
-                player.saveScore();
-                window.close();
-                std::cout << "You win! Score: " << player.score << std::endl;
-            }
-
-            for (auto& ghost : ghosts) {
-                ghost.updateDirection(player.position, chaseMode);
-                sf::Vector2i nextPos = ghost.position + ghost.direction;
-                if (map[nextPos.y][nextPos.x] != 1) {
-                    ghost.position = nextPos;
-                }
-                if (ghost.position == player.position) {
-                    player.saveScore();
-                    window.close();
-                    std::cout << "Game Over! Score: " << player.score << std::endl;
+            // Sprawdzanie czy wszystkie punkty zebrane
+            bool wszystkie_zebrane = true;
+            for (const auto& punkt : punkty) {
+                if (punkt.aktywny) {
+                    wszystkie_zebrane = false;
+                    break;
                 }
             }
-        }
+            if (wszystkie_zebrane) {
+                gracz.zapisz_wynik();
+                okno.close();
+                std::cout << "Wygrana! Zdobyte punkty: " << gracz.punkty << std::endl;
+            }
 
-        window.clear();
-
-        for (int y = 0; y < MAP_HEIGHT; ++y) {
-            for (int x = 0; x < MAP_WIDTH; ++x) {
-                if (map[y][x] == 1) {
-                    wall.setPosition(x * TILE_SIZE, y * TILE_SIZE);
-                    window.draw(wall);
+            // Aktualizacja duchów
+            for (auto& duch : duchy) {
+                duch.zmien_kierunek(gracz.pozycja, tryb_gonienia);
+                sf::Vector2i nowa_poz = duch.pozycja + duch.kierunek;
+                if (mapa[nowa_poz.y][nowa_poz.x] != 1) {
+                    duch.pozycja = nowa_poz;
+                }
+                // Sprawdzanie kolizji z graczem
+                if (duch.pozycja == gracz.pozycja) {
+                    gracz.zapisz_wynik();
+                    okno.close();
+                    std::cout << "Koniec gry! Zdobyte punkty: " << gracz.punkty << std::endl;
                 }
             }
         }
 
-        for (const auto& point : points) {
-            if (point.active) {
-                window.draw(point.shape);
+        // Rysowanie
+        okno.clear();
+
+        // Rysowanie œcian
+        for (int y = 0; y < WYSOKOSC_MAPY; ++y) {
+            for (int x = 0; x < SZEROKOSC_MAPY; ++x) {
+                if (mapa[y][x] == 1) {
+                    sciana.setPosition(x * ROZMIAR_KAFELKA, y * ROZMIAR_KAFELKA);
+                    okno.draw(sciana);
+                }
             }
         }
 
-        player.shape.setPosition(player.position.x * TILE_SIZE + 2, player.position.y * TILE_SIZE + 2);
-        window.draw(player.shape);
-
-        for (auto& ghost : ghosts) {
-            ghost.shape.setPosition(ghost.position.x * TILE_SIZE + 2, ghost.position.y * TILE_SIZE + 2);
-            window.draw(ghost.shape);
+        // Rysowanie punktów
+        for (const auto& punkt : punkty) {
+            if (punkt.aktywny) {
+                okno.draw(punkt.ksztalt);
+            }
         }
 
-        scoreText.setString("Score: " + std::to_string(player.score));
-        window.draw(scoreText);
+        // Rysowanie gracza
+        gracz.ksztalt.setPosition(
+            gracz.pozycja.x * ROZMIAR_KAFELKA + 2,
+            gracz.pozycja.y * ROZMIAR_KAFELKA + 2
+        );
+        okno.draw(gracz.ksztalt);
 
-        modeText.setString(chaseMode ? "CHASE MODE!" : "Normal Mode");
-        modeText.setFillColor(chaseMode ? sf::Color::Red : sf::Color::White);
-        window.draw(modeText);
+        // Rysowanie duchów
+        for (auto& duch : duchy) {
+            duch.ksztalt.setPosition(
+                duch.pozycja.x * ROZMIAR_KAFELKA + 2,
+                duch.pozycja.y * ROZMIAR_KAFELKA + 2
+            );
+            okno.draw(duch.ksztalt);
+        }
 
-        window.display();
+        // Aktualizacja i rysowanie tekstów
+        tekst_punktow.setString("Punkty: " + std::to_string(gracz.punkty));
+        okno.draw(tekst_punktow);
+
+        tekst_trybu.setString(tryb_gonienia ? "GONIENIE!" : "Normalny Tryb");
+        tekst_trybu.setFillColor(tryb_gonienia ? sf::Color::Red : sf::Color::White);
+        okno.draw(tekst_trybu);
+
+        // Wyœwietlenie wszystkiego na ekranie
+        okno.display();
     }
     return 0;
 }
