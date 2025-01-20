@@ -15,7 +15,7 @@ const int WYSOKOSC_OKNA = WYSOKOSC_MAPY * ROZMIAR_KAFELKA;
 const float CZAS_GONIENIA = 5.0f;     // jak d³ugo duszki goni¹ gracza
 const float PRZERWA_GONIENIA = 15.0f; // co ile czasu duszki zaczynaj¹ goniæ
 
-// Mapa gry: 1 = œciana, 0 = punkt, 2 = powerup (nieu¿ywany)
+// Mapa gry: 1 = œciana, 0 = punkt
 int mapa[WYSOKOSC_MAPY][SZEROKOSC_MAPY] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,2,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,2,0,1},
@@ -175,7 +175,7 @@ public:
 
 // G³ówna funkcja programu
 int main() {
-    // Inicjalizacja generatora liczb losowych
+    // Generator liczb losowych
     srand(static_cast<unsigned>(time(nullptr)));
 
     // Pobieranie nazwy gracza
@@ -199,7 +199,9 @@ int main() {
 
     // Tworzenie kszta³tu œciany
     sf::RectangleShape sciana(sf::Vector2f(ROZMIAR_KAFELKA, ROZMIAR_KAFELKA));
-    sciana.setFillColor(sf::Color::Blue);
+    sciana.setFillColor(sf::Color::Black);           // Czarne wype³nienie
+    sciana.setOutlineColor(sf::Color::Blue);         // Niebieski obwód
+    sciana.setOutlineThickness(2.0f);                // Gruboœæ obwodu - 2 piksele
 
     // Tworzenie punktów do zebrania
     std::vector<Punkt> punkty;
@@ -258,31 +260,31 @@ int main() {
     // G³ówna pêtla gry
     while (okno.isOpen()) {
         // Obs³uga zdarzeñ (klawisze, zamkniêcie okna)
-        sf::Event zdarzenie;
-        while (okno.pollEvent(zdarzenie)) {
-            if (zdarzenie.type == sf::Event::Closed)
+        sf::Event event;
+        while (okno.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
                 okno.close();
 
-            if (zdarzenie.type == sf::Event::KeyPressed) {
+            if (event.type == sf::Event::KeyPressed) {
                 // Obs³uga pauzy
-                if (zdarzenie.key.code == sf::Keyboard::Escape) {
+                if (event.key.code == sf::Keyboard::Escape) {
                     pauza = !pauza;
                 }
                 if (pauza) {
-                    if (zdarzenie.key.code == sf::Keyboard::R) {
+                    if (event.key.code == sf::Keyboard::R) {
                         pauza = false;
                     }
-                    if (zdarzenie.key.code == sf::Keyboard::Q) {
+                    if (event.key.code == sf::Keyboard::Q) {
                         gracz.zapisz_wynik();
                         okno.close();
                     }
                 }
                 else {
                     // Obs³uga ruchu gracza
-                    if (zdarzenie.key.code == sf::Keyboard::W) gracz.kierunek = { 0, -1 };
-                    if (zdarzenie.key.code == sf::Keyboard::S) gracz.kierunek = { 0, 1 };
-                    if (zdarzenie.key.code == sf::Keyboard::A) gracz.kierunek = { -1, 0 };
-                    if (zdarzenie.key.code == sf::Keyboard::D) gracz.kierunek = { 1, 0 };
+                    if (event.key.code == sf::Keyboard::W) gracz.kierunek = { 0, -1 };
+                    if (event.key.code == sf::Keyboard::S) gracz.kierunek = { 0, 1 };
+                    if (event.key.code == sf::Keyboard::A) gracz.kierunek = { -1, 0 };
+                    if (event.key.code == sf::Keyboard::D) gracz.kierunek = { 1, 0 };
                 }
             }
         }
