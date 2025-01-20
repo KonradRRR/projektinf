@@ -1,15 +1,16 @@
 ﻿  main.cpp
-C:\Nowy folder\projektinf\Project\Project\main.cpp(51,59): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(50,59): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(68,16): warning C4244: "return": konwersja z "double" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(362,63): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(362,42): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(378,47): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(377,47): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(386,50): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
-C:\Nowy folder\projektinf\Project\Project\main.cpp(385,50): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(49,59): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(48,59): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(65,16): warning C4244: "return": konwersja z "double" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(355,63): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(355,42): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(371,47): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(370,47): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(379,50): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
+C:\Nowy folder\projektinf\Project\Project\main.cpp(378,50): warning C4244: "argument": konwersja z "int" do "float", możliwa utrata danych
   Trwa generowanie kodu
-  Previous IPDB and IOBJ mismatch, fall back to full compilation.
-  All 457 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  3 of 457 functions ( 0.7%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
   Zakończono generowanie kodu
   Project.vcxproj -> C:\Nowy folder\projektinf\Project\x64\Release\Project.exe

@@ -35,17 +35,15 @@ int mapa[WYSOKOSC_MAPY][SZEROKOSC_MAPY] = {
 };
 
 // Struktura reprezentuj¹ca punkt do zebrania
-// Ka¿dy punkt ma swoj¹ pozycjê i mo¿e byæ aktywny lub nie
 struct Punkt {
-    sf::Vector2i pozycja;  // pozycja na mapie
-    sf::CircleShape ksztalt;  // wygl¹d punktu
-    bool aktywny;  // czy punkt zosta³ ju¿ zebrany
+    sf::Vector2i pozycja;  
+    sf::CircleShape ksztalt;  
+    bool aktywny; 
 
     // Konstruktor - tworzy nowy punkt w podanej pozycji
     Punkt(sf::Vector2i poz) : pozycja(poz), aktywny(true) {
-        ksztalt = sf::CircleShape(5);  // kó³ko o promieniu 5 pikseli
+        ksztalt = sf::CircleShape(5);  
         ksztalt.setFillColor(sf::Color::White);
-        // ustawiam pozycjê punktu na œrodku kafelka
         ksztalt.setPosition(
             poz.x * ROZMIAR_KAFELKA + ROZMIAR_KAFELKA / 2 - 5,
             poz.y * ROZMIAR_KAFELKA + ROZMIAR_KAFELKA / 2 - 5
@@ -55,7 +53,7 @@ struct Punkt {
 
 // Funkcja zwraca losowy kierunek ruchu (góra, dó³, lewo, prawo)
 sf::Vector2i losowy_kierunek() {
-    int kier = rand() % 4;  // losujê liczbê od 0 do 3
+    int kier = rand() % 4;  
     if (kier == 0) return { 0, -1 };  // góra
     if (kier == 1) return { 0, 1 };   // dó³
     if (kier == 2) return { -1, 0 };  // lewo
@@ -63,21 +61,18 @@ sf::Vector2i losowy_kierunek() {
 }
 
 // Funkcja liczy odleg³oœæ miêdzy dwoma punktami
-// U¿ywam wzoru na odleg³oœæ euklidesow¹
 float odleglosc(sf::Vector2i a, sf::Vector2i b) {
     return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
 }
 
 // Funkcja znajduje najlepszy kierunek do celu
-// Sprawdza wszystkie mo¿liwe ruchy i wybiera ten, który najbardziej zbli¿a do celu
 sf::Vector2i znajdz_kierunek_do_celu(sf::Vector2i obecna, sf::Vector2i cel) {
-    // Mo¿liwe kierunki ruchu
     std::vector<sf::Vector2i> mozliwe_kierunki = {
         {0, -1}, {0, 1}, {-1, 0}, {1, 0}
     };
 
-    float min_odl = 99999.0f;  // du¿a liczba na pocz¹tek
-    sf::Vector2i najlepszy_kier = losowy_kierunek();  // jakby nic nie znalaz³
+    float min_odl = 99999.0f;  
+    sf::Vector2i najlepszy_kier = losowy_kierunek(); 
 
     // Sprawdzam ka¿dy mo¿liwy kierunek
     for (const auto& kier : mozliwe_kierunki) {
@@ -99,11 +94,11 @@ sf::Vector2i znajdz_kierunek_do_celu(sf::Vector2i obecna, sf::Vector2i cel) {
 
 // Struktura reprezentuj¹ca ducha
 struct Duch {
-    sf::CircleShape ksztalt;      // jak duch wygl¹da
-    sf::Vector2i pozycja;         // gdzie jest
-    sf::Vector2i kierunek;        // dok¹d idzie
-    bool goni;                    // czy goni gracza
-    sf::Color normalny_kolor;     // kolor ducha jak nie goni
+    sf::CircleShape ksztalt;      
+    sf::Vector2i pozycja;         
+    sf::Vector2i kierunek;        
+    bool goni;                  
+    sf::Color normalny_kolor;    
 
     // Konstruktor - ustawia pocz¹tkowe wartoœci ducha
     Duch(sf::Color kolor, sf::Vector2i start_poz, sf::Vector2i start_kier)
@@ -134,11 +129,11 @@ struct Duch {
 // Klasa reprezentuj¹ca gracza
 class Gracz {
 public:
-    sf::CircleShape ksztalt;   // jak gracz wygl¹da
-    sf::Vector2i pozycja;      // gdzie jest
-    sf::Vector2i kierunek;     // dok¹d idzie
-    int punkty;                // ile punktów zdoby³
-    std::string nazwa_profilu; // nazwa gracza
+    sf::CircleShape ksztalt;   
+    sf::Vector2i pozycja;      
+    sf::Vector2i kierunek;     
+    int punkty;                
+    std::string nazwa_profilu; 
 
     // Konstruktor - ustawia pocz¹tkowe wartoœci gracza
     Gracz(const std::string& nazwa) : pozycja(1, 1), kierunek(0, 0), punkty(0), nazwa_profilu(nazwa) {
@@ -158,8 +153,8 @@ public:
     // Funkcja sprawdza czy gracz zebra³ punkt
     void aktualizuj_punkty(Punkt& punkt) {
         if (punkt.aktywny && punkt.pozycja == pozycja) {
-            punkt.aktywny = false;  // punkt zebrany
-            punkty += 10;           // dodajê 10 punktów
+            punkt.aktywny = false; 
+            punkty += 10;           
         }
     }
 
@@ -199,14 +194,13 @@ int main() {
 
     // Tworzenie kszta³tu œciany
     sf::RectangleShape sciana(sf::Vector2f(ROZMIAR_KAFELKA, ROZMIAR_KAFELKA));
-    sciana.setFillColor(sf::Color::Black);           // Czarne wype³nienie
-    sciana.setOutlineColor(sf::Color::Blue);         // Niebieski obwód
-    sciana.setOutlineThickness(2.0f);                // Gruboœæ obwodu - 2 piksele
+    sciana.setFillColor(sf::Color::Black);           
+    sciana.setOutlineColor(sf::Color::Blue);        
+    sciana.setOutlineThickness(2.0f);               
 
     // Tworzenie punktów do zebrania
     std::vector<Punkt> punkty;
     int liczba_punktow = 0;
-    // Przeszukujê mapê i dodajê punkty tam gdzie s¹ zera
     for (int y = 0; y < WYSOKOSC_MAPY; ++y) {
         for (int x = 0; x < SZEROKOSC_MAPY; ++x) {
             if (mapa[y][x] == 0) {
@@ -218,7 +212,7 @@ int main() {
 
     // Zmienna do kontroli prêdkoœci gry
     int licznik_klatek = 0;
-    int opoznienie_ruchu = 15;  // co tyle klatek nastêpuje ruch
+    int opoznienie_ruchu = 15;  
 
     // Tworzenie duchów
     std::vector<Duch> duchy = {
@@ -257,9 +251,8 @@ int main() {
     tekst_pauzy.setString("PAUZA\nR - Wznow\nQ - Wyjdz");
     tekst_pauzy.setPosition(SZEROKOSC_OKNA / 2 - 100, WYSOKOSC_OKNA / 2 - 50);
 
-    // G³ówna pêtla gry
+  
     while (okno.isOpen()) {
-        // Obs³uga zdarzeñ (klawisze, zamkniêcie okna)
         sf::Event event;
         while (okno.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
@@ -396,7 +389,6 @@ int main() {
         tekst_trybu.setFillColor(tryb_gonienia ? sf::Color::Red : sf::Color::White);
         okno.draw(tekst_trybu);
 
-        // Wyœwietlenie wszystkiego na ekranie
         okno.display();
     }
     return 0;
